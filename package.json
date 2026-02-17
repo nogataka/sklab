@@ -1,6 +1,9 @@
 {
-  "name": "sklab",
+  "name": "@nogataka/sklab",
   "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Claude Code Skill Manager — install and manage skills from GitHub",
   "bin": {
     "sklab": "./bin/sklab.js"
