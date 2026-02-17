@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 const pkg = require('../package.json');
 
 program
-  .name('sklab')
+  .name('skillab')
   .description('Claude Code Skill Manager — install and manage skills from GitHub')
   .version(pkg.version);
 

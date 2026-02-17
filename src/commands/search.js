@@ -34,7 +34,7 @@ async function searchCommand(query, opts) {
   );
 
   console.log();
-  info(`Install with: ${bold('sklab add <owner/repo>')}`);
+  info(`Install with: ${bold('skillab add <owner/repo>')}`);
 }
 
 function truncate(str, len) {

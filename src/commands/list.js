@@ -15,7 +15,7 @@ export function registerList(program) {
       }
 
       if (skills.length === 0) {
-        info('No skills installed. Run ' + bold('sklab add <owner/repo>') + ' to install one.');
+        info('No skills installed. Run ' + bold('skillab add <owner/repo>') + ' to install one.');
         return;
       }
 

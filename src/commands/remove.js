@@ -22,7 +22,7 @@ async function removeCommand(name, opts) {
 
   if (!skill) {
     throw new Error(
-      `Skill "${name}" is not installed. Run ${bold('sklab list')} to see installed skills.`,
+      `Skill "${name}" is not installed. Run ${bold('skillab list')} to see installed skills.`,
     );
   }
 
