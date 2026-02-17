@@ -1,0 +1,29 @@
+{
+  "name": "sklab",
+  "version": "0.1.0",
+  "description": "Claude Code Skill Manager — install and manage skills from GitHub",
+  "bin": {
+    "sklab": "./bin/sklab.js"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "bin/",
+    "src/"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "skills",
+    "cli"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.1.0",
+    "js-yaml": "^4.1.0",
+    "picocolors": "^1.1.1",
+    "tar": "^7.4.3"
+  }
+}
