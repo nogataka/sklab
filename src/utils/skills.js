@@ -2,27 +2,26 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import yaml from 'js-yaml';
 
-const SKILLS_DIR = path.join(process.env.HOME, '.claude', 'skills');
-const MANIFEST_PATH = path.join(SKILLS_DIR, '.sklab.json');
+const HOME = process.env.HOME;
+const DEFAULT_SKILLS_DIR = path.join(HOME, '.claude', 'skills');
 
-export function getSkillsDir() {
-  return SKILLS_DIR;
+/**
+ * Get the manifest path for a given skills directory.
+ */
+export function getManifestPath(skillsDir = DEFAULT_SKILLS_DIR) {
+  return path.join(skillsDir, '.sklab.json');
 }
 
-export function getManifestPath() {
-  return MANIFEST_PATH;
-}
-
-export async function ensureSkillsDir() {
-  await fs.mkdir(SKILLS_DIR, { recursive: true });
+export async function ensureDir(dir) {
+  await fs.mkdir(dir, { recursive: true });
 }
 
 /**
- * Read the .sklab.json manifest.
+ * Read the .sklab.json manifest from a skills directory.
  */
-export async function readManifest() {
+export async function readManifest(skillsDir = DEFAULT_SKILLS_DIR) {
   try {
-    const data = await fs.readFile(MANIFEST_PATH, 'utf8');
+    const data = await fs.readFile(getManifestPath(skillsDir), 'utf8');
     return JSON.parse(data);
   } catch {
     return { version: 1, skills: {} };
@@ -30,16 +29,15 @@ export async function readManifest() {
 }
 
 /**
- * Write the .sklab.json manifest.
+ * Write the .sklab.json manifest to a skills directory.
  */
-export async function writeManifest(manifest) {
-  await ensureSkillsDir();
-  await fs.writeFile(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + '\n');
+export async function writeManifest(manifest, skillsDir = DEFAULT_SKILLS_DIR) {
+  await ensureDir(skillsDir);
+  await fs.writeFile(getManifestPath(skillsDir), JSON.stringify(manifest, null, 2) + '\n');
 }
 
 /**
  * Parse YAML frontmatter from a SKILL.md file.
- * Returns { name, description, ...rest } or null.
  */
 export function parseFrontmatter(content) {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
@@ -53,7 +51,6 @@ export function parseFrontmatter(content) {
 
 /**
  * Detect skills in a directory by finding SKILL.md files.
- * Returns array of { name, description, dir } objects.
  */
 export async function detectSkills(baseDir) {
   const skills = [];
@@ -72,12 +69,8 @@ export async function detectSkills(baseDir) {
       const content = await fs.readFile(path.join(dir, 'SKILL.md'), 'utf8');
       const meta = parseFrontmatter(content);
       const name = meta?.name || path.basename(dir);
-      skills.push({
-        name,
-        description: meta?.description || '',
-        dir,
-      });
-      return; // don't recurse into a skill directory
+      skills.push({ name, description: meta?.description || '', dir });
+      return;
     }
 
     for (const entry of entries) {
@@ -92,18 +85,23 @@ export async function detectSkills(baseDir) {
 }
 
 /**
- * List installed skills from the skills directory, enriched with manifest data.
+ * List installed skills from a skills directory, enriched with manifest data.
  */
-export async function listInstalledSkills() {
-  await ensureSkillsDir();
-  const manifest = await readManifest();
-  const entries = await fs.readdir(SKILLS_DIR, { withFileTypes: true });
+export async function listInstalledSkills(skillsDir = DEFAULT_SKILLS_DIR) {
+  await ensureDir(skillsDir);
+  const manifest = await readManifest(skillsDir);
+  let entries;
+  try {
+    entries = await fs.readdir(skillsDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
 
   const skills = [];
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
 
-    const skillDir = path.join(SKILLS_DIR, entry.name);
+    const skillDir = path.join(skillsDir, entry.name);
     const skillMdPath = path.join(skillDir, 'SKILL.md');
 
     let meta = {};
@@ -111,7 +109,7 @@ export async function listInstalledSkills() {
       const content = await fs.readFile(skillMdPath, 'utf8');
       meta = parseFrontmatter(content) || {};
     } catch {
-      // no SKILL.md, use directory name
+      // no SKILL.md
     }
 
     const manifestEntry = manifest.skills[entry.name] || null;
@@ -129,24 +127,21 @@ export async function listInstalledSkills() {
 }
 
 /**
- * Copy a skill directory to ~/.claude/skills/<name>/ atomically.
+ * Copy a skill directory to <skillsDir>/<name>/ atomically.
  */
-export async function installSkill(sourceDir, name) {
-  await ensureSkillsDir();
-  const target = path.join(SKILLS_DIR, name);
+export async function installSkill(sourceDir, name, skillsDir = DEFAULT_SKILLS_DIR) {
+  await ensureDir(skillsDir);
+  const target = path.join(skillsDir, name);
   const tmp = target + '.tmp.' + Date.now();
 
-  // Copy to tmp
   await copyDir(sourceDir, tmp);
 
-  // Remove existing if present
   try {
     await fs.rm(target, { recursive: true, force: true });
   } catch {
     // ignore
   }
 
-  // Atomic rename
   await fs.rename(tmp, target);
 }
 
@@ -169,11 +164,11 @@ async function copyDir(src, dest) {
 /**
  * Remove a skill directory and its manifest entry.
  */
-export async function removeSkill(name) {
-  const target = path.join(SKILLS_DIR, name);
+export async function removeSkill(name, skillsDir = DEFAULT_SKILLS_DIR) {
+  const target = path.join(skillsDir, name);
   await fs.rm(target, { recursive: true, force: true });
 
-  const manifest = await readManifest();
+  const manifest = await readManifest(skillsDir);
   delete manifest.skills[name];
-  await writeManifest(manifest);
+  await writeManifest(manifest, skillsDir);
 }

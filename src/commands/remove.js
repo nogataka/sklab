@@ -1,11 +1,13 @@
 import { removeSkill, listInstalledSkills } from '../utils/skills.js';
-import { success, error, warn, bold, confirm } from '../utils/ui.js';
+import { resolveTargets, addTargetOption } from '../utils/agents.js';
+import { success, error, warn, bold, dim, confirm } from '../utils/ui.js';
 
 export function registerRemove(program) {
-  program
+  const cmd = program
     .command('remove <name>')
     .description('Remove an installed skill')
-    .option('-f, --force', 'Remove without confirmation')
+    .option('-f, --force', 'Remove without confirmation');
+  addTargetOption(cmd)
     .action(async (name, opts) => {
       try {
         await removeCommand(name, opts);
@@ -17,23 +19,32 @@ export function registerRemove(program) {
 }
 
 async function removeCommand(name, opts) {
-  const skills = await listInstalledSkills();
-  const skill = skills.find(s => s.name === name);
+  const targets = resolveTargets(opts);
 
-  if (!skill) {
-    throw new Error(
-      `Skill "${name}" is not installed. Run ${bold('skillab list')} to see installed skills.`,
-    );
-  }
+  for (const agent of targets) {
+    const label = targets.length > 1 ? ` ${dim(`[${agent.name}]`)}` : '';
+    const skills = await listInstalledSkills(agent.dir);
+    const skill = skills.find(s => s.name === name);
 
-  if (!opts.force) {
-    const ok = await confirm(`Remove skill "${name}"?`);
-    if (!ok) {
-      warn('Cancelled.');
-      return;
+    if (!skill) {
+      if (targets.length === 1) {
+        throw new Error(
+          `Skill "${name}" is not installed. Run ${bold('skillab list')} to see installed skills.`,
+        );
+      }
+      warn(`Skill "${name}" not found in ${agent.name}, skipping.`);
+      continue;
     }
-  }
 
-  await removeSkill(name);
-  success(`Removed ${bold(name)}`);
+    if (!opts.force) {
+      const ok = await confirm(`Remove skill "${name}" from ${agent.name}?`);
+      if (!ok) {
+        warn('Cancelled.');
+        continue;
+      }
+    }
+
+    await removeSkill(name, agent.dir);
+    success(`Removed ${bold(name)}${label}`);
+  }
 }

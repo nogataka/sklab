@@ -1,6 +1,8 @@
 # skillab
 
-Claude Code Skill Manager — install and manage skills from GitHub.
+Skill Manager for coding agents — install and manage SKILL.md-based skills from GitHub.
+
+Supports **Claude Code**, **Codex CLI**, **Gemini CLI**, **Cursor**, **Windsurf**, **Cline**, and **GitHub Copilot**.
 
 ## Install
 
@@ -14,6 +16,22 @@ Or install globally:
 npm install -g skillab
 ```
 
+## Supported Agents
+
+```bash
+skillab agents
+```
+
+| ID | Agent | Skills Directory |
+|----|-------|-----------------|
+| `claude` | Claude Code | `~/.claude/skills/` |
+| `codex` | Codex CLI | `~/.codex/skills/` |
+| `gemini` | Gemini CLI | `~/.gemini/skills/` |
+| `cursor` | Cursor | `~/.cursor/skills/` |
+| `windsurf` | Windsurf | `~/.windsurf/skills/` |
+| `cline` | Cline | `~/.cline/skills/` |
+| `copilot` | GitHub Copilot | `~/.copilot/skills/` |
+
 ## Commands
 
 ### `skillab add <owner/repo>`
@@ -21,9 +39,20 @@ npm install -g skillab
 Install skills from a GitHub repository.
 
 ```bash
-skillab add nogataka/SkillLab                     # install all skills from repo
-skillab add nogataka/SkillLab --skill playwright-cli  # install specific skill
-skillab add nogataka/SkillLab --force             # overwrite without confirmation
+# Install to Claude Code (default)
+skillab add nogataka/SkillLab
+
+# Install to a specific agent
+skillab add nogataka/SkillLab --agent gemini
+
+# Install to multiple agents
+skillab add nogataka/SkillLab --agent claude,codex,gemini
+
+# Install to all agents
+skillab add nogataka/SkillLab --agent all
+
+# Install a specific skill only
+skillab add nogataka/SkillLab --skill playwright-cli --agent all
 ```
 
 ### `skillab list`
@@ -31,8 +60,10 @@ skillab add nogataka/SkillLab --force             # overwrite without confirmati
 List installed skills.
 
 ```bash
-skillab list          # table format
-skillab list --json   # JSON output
+skillab list                     # Claude Code (default)
+skillab list --agent gemini      # Gemini CLI
+skillab list --agent all         # All agents
+skillab list --json              # JSON output
 ```
 
 ### `skillab remove <name>`
@@ -41,7 +72,7 @@ Remove an installed skill.
 
 ```bash
 skillab remove playwright-cli
-skillab remove playwright-cli --force   # skip confirmation
+skillab remove playwright-cli --agent all --force
 ```
 
 ### `skillab update [name]`
@@ -49,8 +80,8 @@ skillab remove playwright-cli --force   # skip confirmation
 Update skill(s) from their source repository.
 
 ```bash
-skillab update                  # update all skills
-skillab update playwright-cli   # update specific skill
+skillab update                          # Update all in Claude Code
+skillab update playwright-cli --agent all  # Update across all agents
 ```
 
 ### `skillab search <query>`
@@ -61,11 +92,18 @@ Search GitHub for skill repositories.
 skillab search claude-skill
 ```
 
-## How It Works
+### `skillab agents`
 
-Skills are installed to `~/.claude/skills/<name>/`. Each skill directory contains a `SKILL.md` file with YAML frontmatter defining the skill's name and description.
+List supported agents and detect which are installed on your machine.
 
-A manifest file at `~/.claude/skills/.sklab.json` tracks which skills were installed by skillab, their source repository, and commit hash, enabling updates.
+## Options
+
+All commands that operate on skills accept:
+
+- `-t, --target <agents>` — Target agent(s) by ID, comma-separated, or `all`
+- `-a, --agent <agents>` — Alias for `--target`
+
+Default target is `claude` when not specified.
 
 ## License
 

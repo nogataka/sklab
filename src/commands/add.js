@@ -5,17 +5,18 @@ import {
   installSkill,
   readManifest,
   writeManifest,
-  getSkillsDir,
 } from '../utils/skills.js';
+import { resolveTargets, addTargetOption } from '../utils/agents.js';
 import { info, success, warn, error, bold, dim, spinner, confirm } from '../utils/ui.js';
 import path from 'node:path';
 
 export function registerAdd(program) {
-  program
+  const cmd = program
     .command('add <repo>')
     .description('Install skills from a GitHub repository (owner/repo)')
     .option('-s, --skill <name>', 'Install only a specific skill by name')
-    .option('-f, --force', 'Overwrite existing skills without confirmation')
+    .option('-f, --force', 'Overwrite existing skills without confirmation');
+  addTargetOption(cmd)
     .action(async (repo, opts) => {
       try {
         await addCommand(repo, opts);
@@ -27,10 +28,10 @@ export function registerAdd(program) {
 }
 
 async function addCommand(repoStr, opts) {
-  // 1. Parse owner/repo
   const { owner, repo } = parseOwnerRepo(repoStr);
+  const targets = resolveTargets(opts);
 
-  // 2. Get repo info
+  // Fetch repo info
   const spin = spinner(`Fetching ${owner}/${repo}...`);
   let repoInfo;
   try {
@@ -42,7 +43,7 @@ async function addCommand(repoStr, opts) {
   }
   info(`Repository: ${bold(repoInfo.fullName)} (${repoInfo.defaultBranch}, ${repoInfo.commit})`);
 
-  // 3. Download and extract tarball
+  // Download and extract
   const spin2 = spinner('Downloading...');
   let extractDir, tmpDir;
   try {
@@ -54,7 +55,7 @@ async function addCommand(repoStr, opts) {
   }
 
   try {
-    // 4. Detect skills in extracted directory
+    // Detect skills
     const skills = await detectSkills(extractDir);
     if (skills.length === 0) {
       warn('No skills found in this repository (no SKILL.md files detected).');
@@ -63,7 +64,7 @@ async function addCommand(repoStr, opts) {
 
     info(`Found ${skills.length} skill(s): ${skills.map(s => bold(s.name)).join(', ')}`);
 
-    // 5. Filter by --skill
+    // Filter by --skill
     let toInstall = skills;
     if (opts.skill) {
       toInstall = skills.filter(s => s.name === opts.skill);
@@ -74,46 +75,46 @@ async function addCommand(repoStr, opts) {
       }
     }
 
-    // 6. Check for existing skills
-    const manifest = await readManifest();
-    const skillsDir = getSkillsDir();
+    // Install to each target agent
+    for (const agent of targets) {
+      const label = targets.length > 1 ? ` ${dim(`[${agent.name}]`)}` : '';
 
-    for (const skill of toInstall) {
-      const targetDir = path.join(skillsDir, skill.name);
-      let exists = false;
-      try {
-        await fs.access(targetDir);
-        exists = true;
-      } catch {
-        // doesn't exist
-      }
+      const manifest = await readManifest(agent.dir);
 
-      if (exists && !opts.force) {
-        const ok = await confirm(
-          `Skill "${skill.name}" already exists. Overwrite?`,
-        );
-        if (!ok) {
-          info(`Skipped ${bold(skill.name)}`);
-          continue;
+      for (const skill of toInstall) {
+        const targetDir = path.join(agent.dir, skill.name);
+        let exists = false;
+        try {
+          await fs.access(targetDir);
+          exists = true;
+        } catch {
+          // doesn't exist
         }
+
+        if (exists && !opts.force) {
+          const ok = await confirm(
+            `Skill "${skill.name}" already exists in ${agent.name}. Overwrite?`,
+          );
+          if (!ok) {
+            info(`Skipped ${bold(skill.name)}${label}`);
+            continue;
+          }
+        }
+
+        await installSkill(skill.dir, skill.name, agent.dir);
+
+        manifest.skills[skill.name] = {
+          source: `${owner}/${repo}`,
+          installedAt: new Date().toISOString(),
+          commit: repoInfo.commit,
+        };
+
+        success(`Installed ${bold(skill.name)}${label}`);
       }
 
-      // 7. Install skill (atomic copy)
-      await installSkill(skill.dir, skill.name);
-
-      // 8. Update manifest
-      manifest.skills[skill.name] = {
-        source: `${owner}/${repo}`,
-        installedAt: new Date().toISOString(),
-        commit: repoInfo.commit,
-      };
-
-      success(`Installed ${bold(skill.name)}`);
+      await writeManifest(manifest, agent.dir);
     }
-
-    await writeManifest(manifest);
   } finally {
-    // 9. Cleanup
     await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
