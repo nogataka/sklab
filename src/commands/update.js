@@ -7,7 +7,7 @@ import {
   writeManifest,
   listInstalledSkills,
 } from '../utils/skills.js';
-import { resolveTargets, addTargetOption } from '../utils/agents.js';
+import { resolveTargetsOrDefault, addTargetOption } from '../utils/agents.js';
 import { info, success, warn, error, bold, dim, spinner } from '../utils/ui.js';
 
 export function registerUpdate(program) {
@@ -26,7 +26,7 @@ export function registerUpdate(program) {
 }
 
 async function updateCommand(name, opts) {
-  const targets = resolveTargets(opts);
+  const targets = resolveTargetsOrDefault(opts);
 
   // Collect all (source, skillName, agent) tuples to update
   const updates = []; // { source, skillName, agent }

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { multiSelect, info } from './ui.js';
 
 const HOME = process.env.HOME;
 
@@ -44,11 +45,11 @@ export function addTargetOption(cmd) {
 /**
  * Resolve --target or --agent option to an array of agent objects.
  * Accepts: a single agent id, comma-separated ids, or "all".
- * Defaults to "claude" if not specified.
+ * Returns null if not specified (caller should use interactive selection).
  */
 export function resolveTargets(opts) {
   const targetStr = (typeof opts === 'string') ? opts : (opts?.agent || opts?.target);
-  if (!targetStr) return [AGENTS[0]]; // default: claude
+  if (!targetStr) return null; // not specified — caller decides
 
   const ids = targetStr.split(',').map(s => s.trim().toLowerCase());
 
@@ -65,6 +66,56 @@ export function resolveTargets(opts) {
     resolved.push(agent);
   }
   return resolved;
+}
+
+/**
+ * Resolve targets with interactive fallback.
+ * If --agent/--target is specified, use it directly.
+ * Otherwise, show interactive agent selector.
+ */
+export async function resolveTargetsInteractive(opts) {
+  const explicit = resolveTargets(opts);
+  if (explicit) return explicit;
+
+  // Interactive mode: detect installed agents, show selector
+  const installed = await detectInstalledAgents();
+
+  if (installed.length === 0) {
+    info('No coding agents detected. Installing to Claude Code (default).');
+    return [AGENTS[0]];
+  }
+
+  if (installed.length === 1) {
+    return installed;
+  }
+
+  const items = AGENTS.map(agent => ({
+    label: agent.name,
+    description: agent.dir.replace(HOME, '~'),
+    checked: installed.some(a => a.id === agent.id),
+    agent,
+  }));
+
+  const selectedIndices = await multiSelect(
+    'Select target agents',
+    items,
+  );
+
+  if (selectedIndices.length === 0) {
+    info('No agents selected. Installing to Claude Code (default).');
+    return [AGENTS[0]];
+  }
+
+  return selectedIndices.map(i => items[i].agent);
+}
+
+/**
+ * Resolve targets, defaulting to claude (non-interactive).
+ * Use for commands like list/remove/update where interactive selection
+ * is less useful.
+ */
+export function resolveTargetsOrDefault(opts) {
+  return resolveTargets(opts) || [AGENTS[0]];
 }
 
 /**

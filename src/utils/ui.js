@@ -56,6 +56,100 @@ export async function confirm(question) {
   });
 }
 
+/**
+ * Interactive multi-select checkbox prompt.
+ * items: [{ label, description?, checked? }]
+ * Returns array of selected indices.
+ */
+export async function multiSelect(title, items) {
+  const selected = items.map(item => item.checked ?? false);
+  let cursor = 0;
+
+  return new Promise((resolve) => {
+    const { stdin, stdout } = process;
+    const wasRaw = stdin.isRaw;
+
+    if (!stdin.isTTY) {
+      // Non-interactive: return pre-checked items
+      resolve(items.map((_, i) => i).filter(i => selected[i]));
+      return;
+    }
+
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.setEncoding('utf8');
+
+    function render() {
+      // Move cursor up to clear previous render
+      if (cursor >= 0) {
+        stdout.write(`\x1b[${items.length + 2}A`);
+      }
+
+      stdout.write(`\x1b[2K${pc.cyan('?')} ${pc.bold(title)} ${pc.dim('(↑↓ navigate, space select, enter confirm)')}\n`);
+
+      for (let i = 0; i < items.length; i++) {
+        const isCursor = i === cursor;
+        const isSelected = selected[i];
+        const checkbox = isSelected ? pc.green('■') : pc.dim('□');
+        const label = isCursor ? pc.cyan(items[i].label) : items[i].label;
+        const desc = items[i].description ? pc.dim(` ${items[i].description}`) : '';
+        const pointer = isCursor ? pc.cyan('❯') : ' ';
+        stdout.write(`\x1b[2K ${pointer} ${checkbox} ${label}${desc}\n`);
+      }
+
+      const count = selected.filter(Boolean).length;
+      stdout.write(`\x1b[2K  ${pc.dim(`${count} selected`)}\n`);
+    }
+
+    // Initial render - print blank lines first so cursor-up works
+    for (let i = 0; i < items.length + 2; i++) stdout.write('\n');
+    render();
+
+    function onKey(key) {
+      // Up arrow or k
+      if (key === '\x1b[A' || key === 'k') {
+        cursor = (cursor - 1 + items.length) % items.length;
+        render();
+      }
+      // Down arrow or j
+      else if (key === '\x1b[B' || key === 'j') {
+        cursor = (cursor + 1) % items.length;
+        render();
+      }
+      // Space - toggle
+      else if (key === ' ') {
+        selected[cursor] = !selected[cursor];
+        render();
+      }
+      // Enter - confirm
+      else if (key === '\r' || key === '\n') {
+        cleanup();
+        const result = items.map((_, i) => i).filter(i => selected[i]);
+        resolve(result);
+      }
+      // a - select all / deselect all
+      else if (key === 'a') {
+        const allSelected = selected.every(Boolean);
+        selected.fill(!allSelected);
+        render();
+      }
+      // Ctrl+C or q - abort
+      else if (key === '\x03' || key === 'q') {
+        cleanup();
+        process.exit(0);
+      }
+    }
+
+    function cleanup() {
+      stdin.removeListener('data', onKey);
+      stdin.setRawMode(wasRaw ?? false);
+      stdin.pause();
+    }
+
+    stdin.on('data', onKey);
+  });
+}
+
 export function spinner(msg) {
   const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
   let i = 0;

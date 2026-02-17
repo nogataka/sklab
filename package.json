@@ -1,6 +1,6 @@
 {
   "name": "skillab",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Skill Manager for coding agents — install and manage skills from GitHub",
   "bin": {
     "skillab": "./bin/sklab.js"

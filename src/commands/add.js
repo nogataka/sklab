@@ -6,7 +6,7 @@ import {
   readManifest,
   writeManifest,
 } from '../utils/skills.js';
-import { resolveTargets, addTargetOption } from '../utils/agents.js';
+import { resolveTargetsInteractive, addTargetOption } from '../utils/agents.js';
 import { info, success, warn, error, bold, dim, spinner, confirm } from '../utils/ui.js';
 import path from 'node:path';
 
@@ -29,7 +29,7 @@ export function registerAdd(program) {
 
 async function addCommand(repoStr, opts) {
   const { owner, repo } = parseOwnerRepo(repoStr);
-  const targets = resolveTargets(opts);
+  const targets = await resolveTargetsInteractive(opts);
 
   // Fetch repo info
   const spin = spinner(`Fetching ${owner}/${repo}...`);

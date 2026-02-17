@@ -1,5 +1,5 @@
 import { listInstalledSkills } from '../utils/skills.js';
-import { resolveTargets, addTargetOption } from '../utils/agents.js';
+import { resolveTargetsOrDefault, addTargetOption } from '../utils/agents.js';
 import { info, table, dim, bold, error } from '../utils/ui.js';
 
 export function registerList(program) {
@@ -10,7 +10,7 @@ export function registerList(program) {
   addTargetOption(cmd)
     .action(async (opts) => {
       try {
-        const targets = resolveTargets(opts);
+        const targets = resolveTargetsOrDefault(opts);
 
         if (opts.json) {
           const result = {};

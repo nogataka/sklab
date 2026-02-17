@@ -1,5 +1,5 @@
 import { removeSkill, listInstalledSkills } from '../utils/skills.js';
-import { resolveTargets, addTargetOption } from '../utils/agents.js';
+import { resolveTargetsOrDefault, addTargetOption } from '../utils/agents.js';
 import { success, error, warn, bold, dim, confirm } from '../utils/ui.js';
 
 export function registerRemove(program) {
@@ -19,7 +19,7 @@ export function registerRemove(program) {
 }
 
 async function removeCommand(name, opts) {
-  const targets = resolveTargets(opts);
+  const targets = resolveTargetsOrDefault(opts);
 
   for (const agent of targets) {
     const label = targets.length > 1 ? ` ${dim(`[${agent.name}]`)}` : '';
